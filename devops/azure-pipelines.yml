@@ -1,1 +1,26 @@
 
+trigger:
+  branches:
+    include:
+      - main
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+steps:
+  - task: UsePythonVersion@0
+    inputs:
+      versionSpec: '3.x'
+
+  - script: |
+      echo "🚀 Validando notebooks Databricks..."
+      pip install nbformat nbconvert
+      for nb in $(find notebooks -name "*.ipynb"); do
+        echo "Validando $nb"
+        jupyter nbconvert --to notebook --execute $nb --stdout > /dev/null
+      done
+    displayName: 'Executar notebooks de teste'
+
+  - script: |
+      echo "🚀 Deploy fictício para Databricks (simulação)"
+    displayName: 'Deploy para Databricks'
