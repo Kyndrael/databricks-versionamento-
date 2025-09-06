@@ -1,1 +1,55 @@
 
+# 🧭 Arquitetura — Databricks + Azure DevOps
+
+Este documento descreve a arquitetura de referência para versionamento e organização de notebooks no **Azure Databricks** com **Azure DevOps** (Repos + Pipelines), contemplando CI/CD, segurança e boas práticas.
+
+---
+
+## 🔎 Visão Geral
+
+- **Versionamento**: notebooks sob Git (Azure Repos) com PRs, branch policies e revisão.
+- **Execução**: Jobs/Clusters no Databricks (interativo e agendado).
+- **CI/CD**: Azure Pipelines valida notebooks (lint/execução rápida) e faz deploy para o Workspace.
+- **Dados**: leitura/escrita em **ADLS Gen2**; catálogo e governança com **Unity Catalog**.
+- **Segurança**: Service Principal/Managed Identity, segredos no **Key Vault**, RBAC/ACLs e **SCIM** para identidade.
+
+---
+
+## 🧩 Componentes
+- **Azure DevOps Repos** — controle de versão dos notebooks e scripts.
+- **Azure DevOps Pipelines** — esteiras de CI (validação) e CD (deploy).
+- **Azure Databricks Workspace** — ambiente de notebooks, clusters, jobs.
+- **Unity Catalog / Metastore** — governança, permissões, lineage.
+- **Azure Data Lake Storage Gen2 (ADLS)** — dados e camadas (bronze/silver/gold).
+- **Azure Key Vault** — armazenamento de segredos/credenciais.
+- **Fontes de Dados** — SQL/Parquet/CSV/Delta (on-prem ou cloud).
+
+---
+
+## 🗺️ Diagrama — Visão Lógica
+
+```mermaid
+flowchart LR
+    Dev[Desenvolvedor(a)] -->|Commit/PR| Repos[Azure DevOps Repos]
+    Repos -->|Trigger| Pipelines[Azure DevOps Pipelines]
+
+    Pipelines -->|Auth SP/Mgd Identity| DBCli[Databricks API/CLI]
+    DBCli --> WS[Azure Databricks Workspace]
+    WS --> Jobs[Jobs & Clusters]
+    WS --> ReposDB[Databricks Repos]
+
+    subgraph Dados & Governança
+      UC[Unity Catalog / Metastore]
+      ADLS[(ADLS Gen2<br/>bronze • silver • gold)]
+      DBFS[/DBFS/]
+      UC --- ADLS
+      WS --- UC
+      WS --- DBFS
+    end
+
+    extSrc[(Fontes SQL/CSV/Parquet)] --> WS
+    Jobs --> ADLS
+    WS -->|Visualizações| Viz[Dashboards/Gráficos]
+
+    KV[Azure Key Vault] -. segredos/creds .- Pipelines
+    KV -. segredos/creds .- WS
